@@ -133,6 +133,10 @@ local function validate_window_params(params)
     return false, '"ident_keys" must be a table when provided'
   end
 
+  if select("#", params.command:gsub("%\\%?", "")) ~= #params.command_variables then
+    return false, '"command must have the same number of instances as the length of command_variables'
+  end
+
   -- Validate command string
   local command_string = massage_command(params.command, params.command_variables)
   local command_valid, command_error = pcall(loadstring, command_string)
