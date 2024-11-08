@@ -8,11 +8,16 @@ M.windows = require 'ndi.windows'
 ---@param opts { fargs: string[]; bang: boolean; }
 M.get_lsp = function(opts)
   if opts.bang then
-    M.utils.select_via_fzf('vim.lsp.get_clients {}', 'name', function(selected_lsp)
-      if selected_lsp then
-        M.windows.lsp(selected_lsp)
-      end
-    end)
+    M.utils.select_via_fzf {
+      command = 'vim.lsp.get_clients {}',
+      extract_key = 'name',
+      prompt = 'LSP Client > ',
+      callback = function(selected_lsp)
+        if selected_lsp then
+          M.windows.lsp(selected_lsp)
+        end
+      end,
+    }
   elseif opts.fargs[1] ~= nil then
     M.windows.lsp(opts.fargs[1])
   else
@@ -24,11 +29,16 @@ end
 ---@param opts { fargs: string[]; bang: boolean; }
 M.get_plugin = function(opts)
   if opts.bang then
-    M.utils.select_via_fzf('package.loaded', nil, function(selected_plugin)
-      if selected_plugin then
-        M.windows.plugin(selected_plugin)
-      end
-    end)
+    M.utils.select_via_fzf {
+      command = 'package.loaded',
+      extract_key = nil,
+      prompt = 'Plugin > ',
+      callback = function(selected_plugin)
+        if selected_plugin then
+          M.windows.plugin(selected_plugin)
+        end
+      end,
+    }
   elseif opts.fargs[1] ~= nil then
     M.windows.plugin(opts.fargs[1])
   else
@@ -52,7 +62,7 @@ end
 ---                                                     --- after extracting keys.
 ---  }
 ---}
----@param opts { name: string; command_name: string; command: string; fzf_command: string; fzf_key: string; ident_keys: string[]; print_all_output: boolean; }[]
+---@param opts { name: string; command_name: string; command: string; fzf_command: string; fzf_key: string; fzf_prompt: string|nil; ident_keys: string[]; print_all_output: boolean; }[]
 M.setup = function(opts)
   for i, window in ipairs(opts) do
     M.custom[i] = {}
@@ -61,21 +71,26 @@ M.setup = function(opts)
 
     ---@param name string
     M.custom[i].create = function(name)
-      require('ndi.utils').createWindow(name, window.command, { name }, window.ident_keys, window.print_all_output)
+      require('ndi.utils').createWindow { name, window.command, { name }, window.ident_keys, window.print_all_output }
     end
 
     ---@param local_opts { fargs: string[]; bang: boolean; }
     M.custom[i].call_create = function(local_opts)
       if local_opts.bang then
-        M.utils.select_via_fzf(window.fzf_command, window.fzf_key, function(selected)
-          if selected then
-            M.custom[i].create(selected)
-          end
-        end)
+        M.utils.select_via_fzf {
+          command = window.fzf_command,
+          extract_key = window.fzf_key,
+          prompt = window.fzf_prompt,
+          callback = function(selected)
+            if selected then
+              M.custom[i].create(selected)
+            end
+          end,
+        }
       elseif local_opts.fargs[1] ~= nil then
         M.custom[i].create(local_opts.fargs[1])
       else
-        vim.ui.input({ prompt = 'Enter your input' }, M.custom[i].create)
+        vim.ui.input({ prompt = 'Enter your input: ' }, M.custom[i].create)
       end
     end
 
