@@ -1,6 +1,8 @@
 # Neovim Diagnostical Interface
 A diagnostic utility for troubleshooting Neovim Configurations. This plugin uses the output of a command, extracts necessary information, and then prints it in a temporary buffer. 
 
+![Preview of Plugin](images/ndi-view.gif)
+
 There are currently two commands:  
 1. GetLSPClientInfo - Gets configuration information on a currently-running Language Server Client.
 1. GetPluginInfo - Gets the "package.loaded" table information for a specific package.
