@@ -69,11 +69,17 @@ M.setup = function(opts)
 
     M.custom[i].name = window.name
 
+    ---We generate a method to call create window with the input required.
     ---@param name string
-    M.custom[i].create = function(name)
-      require('ndi.utils').createWindow { name, window.command, { name }, window.ident_keys, window.print_all_output }
+    ---@param variables string[]
+    M.custom[i].create = function(name, variables)
+      require('ndi.utils').createWindow { name, window.command, variables, window.ident_keys, window.print_all_output }
     end
 
+    ---We also generate a method to call the create method. This takes an input from a command.
+    ---1. "!" at the end uses fzf to search for an input (currently only supports one variable.
+    ---2. If arguments to the command are provided, process that as variables.
+    ---3. If no arguments to the command are provided, prompt for input and split by space
     ---@param local_opts { fargs: string[]; bang: boolean; }
     M.custom[i].call_create = function(local_opts)
       if local_opts.bang then
@@ -83,14 +89,20 @@ M.setup = function(opts)
           prompt = window.fzf_prompt,
           callback = function(selected)
             if selected then
-              M.custom[i].create(selected)
+              M.custom[i].create(selected, { selected })
             end
           end,
         }
       elseif local_opts.fargs[1] ~= nil then
-        M.custom[i].create(local_opts.fargs[1])
+        M.custom[i].create(window.name, local_opts.fargs)
       else
-        vim.ui.input({ prompt = 'Enter your input: ' }, M.custom[i].create)
+        local split_input = {}
+        vim.ui.input({ prompt = 'Enter your input: ' }, function(input) ---@param input string
+          if input then
+            split_input = vim.split(input, ' ')
+          end
+        end)
+        M.custom[i].create(window.name, split_input)
       end
     end
 

@@ -19,7 +19,7 @@ function M.plugin(plugin_name)
     name = plugin_name,
     command = "package.loaded['\\?']",
     command_variables = { plugin_name },
-    ident_keys = {},
+    ident_keys = nil,
     print_all_output = true,
   }
 end
