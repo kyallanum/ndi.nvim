@@ -133,7 +133,8 @@ local function validate_window_params(params)
     return false, '"ident_keys" must be a table when provided'
   end
 
-  if select("#", params.command:gsub("%\\%?", "")) ~= #params.command_variables then
+  local _, count = params.command:gsub("%\\%?", "")
+  if count ~= #params.command_variables then
     return false, '"command must have the same number of instances as the length of command_variables'
   end
 
@@ -145,19 +146,22 @@ local function validate_window_params(params)
   end
 
   -- Validate ident_keys format and structure
-  if params.ident_keys and #params.ident_keys == 0 then
-    return false, '"ident_keys" table cannot be empty'
+  if params.ident_keys then
+    if #params.ident_keys == 0 then
+      return false, '"ident_keys" table cannot be empty'
+    end
+
+    for _, key in ipairs(params.ident_keys) do
+      if type(key) ~= 'string' then
+        return false, 'All entried in "ident_keys" must be strings'
+      end
+      -- Validate format
+      if not key:match '^[%w_]+[.]?[%w_]*[.]?[%w_]*[.]?[%w_]*$' then
+        return false, string.format('Invalid ident key format: "%s": must be in the format, "key.subkey.subkey"', key)
+      end
+    end
   end
 
-  for _, key in ipairs(params.ident_keys) do
-    if type(key) ~= 'string' then
-      return false, 'All entried in "ident_keys" must be strings'
-    end
-    -- Validate format
-    if not key:match '^[%w_]+[.]?[%w_]*[.]?[%w_]*[.]?[%w_]*$' then
-      return false, string.format('Invalid ident key format: "%s": must be in the format, "key.subkey.subkey"', key)
-    end
-  end
 
   return true, nil
 end
@@ -231,37 +235,39 @@ function M.createWindow(opts)
       table.insert(lines, string.rep('-', 80))
     end
 
-    for _, v in ipairs(opts.ident_keys) do
-      -- We loop through each ident_key and 1. Add an entry in the table with the appropriate info
-      -- 2. We remove that key from its parent table.
-      local current_print_section = { v:gsub('^%l', string.upper) .. ': ' }
-      local keys, nested_key = get_nested_value(current_output, v)
+    if opts.ident_keys then
+      for _, v in ipairs(opts.ident_keys) do
+        -- We loop through each ident_key and 1. Add an entry in the table with the appropriate info
+        -- 2. We remove that key from its parent table.
+        local current_print_section = { v:gsub('^%l', string.upper) .. ': ' }
+        local keys, nested_key = get_nested_value(current_output, v)
 
-      if not nested_key or not keys then
-        vim.notify(string.format("Nested key '%s' not found in output", v), vim.log.levels.WARN)
-        goto continue
+        if not nested_key or not keys then
+          vim.notify(string.format("Nested key '%s' not found in output", v), vim.log.levels.WARN)
+          goto continue
+        end
+
+        if type(nested_key) == 'table' then
+          local current_line_value = vim.split(vim.inspect(nested_key), '\n')
+          vim.list_extend(current_print_section, current_line_value)
+          vim.list_extend(current_print_section, { '' })
+        else
+          current_print_section[1] = current_print_section[1] .. nested_key
+        end
+
+        vim.list_extend(lines, current_print_section)
+
+        local value_to_remove = current_output
+
+        -- With this, we get to the parent table of the extracted value
+        for key = 1, #keys - 1 do
+          value_to_remove = value_to_remove[keys[key]]
+        end
+        -- ... and then remove it
+        value_to_remove[keys[#keys]] = nil
+
+        ::continue::
       end
-
-      if type(nested_key) == 'table' then
-        local current_line_value = vim.split(vim.inspect(nested_key), '\n')
-        vim.list_extend(current_print_section, current_line_value)
-        vim.list_extend(current_print_section, { '' })
-      else
-        current_print_section[1] = current_print_section[1] .. nested_key
-      end
-
-      vim.list_extend(lines, current_print_section)
-
-      local value_to_remove = current_output
-
-      -- With this, we get to the parent table of the extracted value
-      for key = 1, #keys - 1 do
-        value_to_remove = value_to_remove[keys[key]]
-      end
-      -- ... and then remove it
-      value_to_remove[keys[#keys]] = nil
-
-      ::continue::
     end
 
     -- Take the remainder of the output and print at the end if applicable
